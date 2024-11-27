@@ -62,7 +62,6 @@ def Restricoes(numRestricoes, numVariaveis):
 
             return coefRestricoes, coefLimites
 
-
 #__________________________Main_____________________________
 # Título do aplicativo
 st.title("Simplex Tableau")
@@ -84,36 +83,56 @@ st.markdown(f'<h3 style="border: 1px grey; padding: 10px; border-radius: 5px; ba
 
 st.write("_______________________________________________________________________________")
 
-#Solicitando os coeficientes por meio da função Restricoes
+#Solicitando os coeficientes das Restricoes
 coefRestricoes, coefLimites = Restricoes(numRestricoes, numVariaveis)
 
+x_bounds = [(0, None)] * numVariaveis
 
-#______________________________Resolução do PPL________________________
-st.write("Coeficientes da função Objetivo: ", coefFuncaoObj)
-st.write("Coeficiente limites: ", coefLimites)
-st.write("coeficientes das Restrições: ", coefRestricoes)
+#Resolução do PPL
 
-if st.button("Calcular Solução"):
+# calculando o PPL pelo método Simplex
+resultado = linprog([-c for c in coefFuncaoObj], A_ub=coefRestricoes, b_ub=coefLimites, bounds=x_bounds, method='simplex')
 
-    x_bounds = [(0, None)] * numVariaveis
+# Exibir resultados
+if resultado.success:
+    st.title("Solução ótima: ")
+    st.write(f"Ponto Otimo de Operação:")
 
-    # calculando o PPL pelo método Simplex
-    resultado = linprog([-c for c in coefFuncaoObj], A_ub=coefRestricoes, b_ub=coefLimites, bounds=x_bounds, method='simplex')
+    for i in range(numVariaveis):
+        st.write(f"x{i + 1} = {round(resultado.x[i], 2)}")
 
-    # Exibir resultados
-    if resultado.success:
-        st.title("Solução ótima: ")
-        st.write(f"Ponto Otimo de Operação:")
-        for i in range(numVariaveis):
-            st.write(f"x{i + 1} = {round(resultado.x[i], 2)}")
-        st.write(f"Valor ótimo de Z = {round((resultado.fun *-1), 2)}")  # Negativo para reverter a maximização
+    st.write(f"Valor ótimo de Z = {round((resultado.fun *-1), 2)}")  # Negativo para reverter a maximização
+else:
+    st.write("Erro:", resultado.message)
 
-        # Exibindo os preços sombra (dual) das restrições
-        st.subheader("Preços Sombra das restrições:")
-        for i in range(numRestricoes):
-            st.write(f"Restrição {i + 1}: Preço Sombra = {round(resultado.resultine.dual[i], 2)}")
+#Preços sombras das restrições
+delta = []
 
+st.subheader("Adicione os deltas para alterar os limites de cada restrição:")
+
+#entrado com os valores de delta
+for i in range(numRestricoes):
+    coef = st.number_input(f"Delta de restrição x{i}: ", min_value=0, max_value=None, step=1, value=0 )
+    delta.append(coef)
+
+st.subheader("Preços Sombra das restrições:")
+
+coefSombra = coefLimites.copy()
+
+#somando os valores de delta aos limites das restrrições
+for i in range(numRestricoes):
+    coefSombra[i] += delta[i]
+
+#calculando o preço sombra
+precoSombra = linprog([-c for c in coefFuncaoObj], A_ub=coefRestricoes, b_ub=coefSombra, bounds=x_bounds, method='simplex')
+
+#mostrando os resultados
+if precoSombra.success:
+    st.write(f"Preço sombra:  {round((precoSombra.fun *-1), 2)}")
+    if (precoSombra.fun *-1) > (resultado.fun*-1):
+        st.write("*Alteração viavél*")
     else:
-        st.write("Erro:", resultado.message)
-
+        st.write("*Alteração não viável.*")
+else:
+    st.write("Erro:", precoSombra.message)
 
